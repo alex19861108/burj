@@ -1,0 +1,10 @@
+burj_center:
+  zk_server: localhost:2181
+  zk_root: /burj
+server:
+  name: burj_center
+  port:
+    http: 8888
+    rpc: 8889
+db_mongo:
+  url: mongodb://localhost:27017/burj

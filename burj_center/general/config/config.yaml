@@ -1,0 +1,8 @@
+burj_center:
+  host: localhost:2181
+  root: /burj
+server:
+  port:
+    http: 9000
+db_mongo:
+  url: mongodb://localhost:27017/burj

@@ -1,0 +1,13 @@
+burj_center:
+  zk_server: localhost:2181
+  zk_root: /burj
+  rpc_server: localhost:8889
+server:
+  name: burj_client
+  port:
+    http: 8100
+    rpc: 8101
+monitor:
+  api: localhost:9000/regist/node
+ftp_server:
+  url: sftp://marker:marker@10.201.103.6/data/BIGDISK/zcl/ftpdir/

@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+// go use cc_generic_services option
+option cc_generic_services = true;
+option java_generic_services = true;
+option py_generic_services = true;
+
+package proto;
+
+import "google/protobuf/timestamp.proto";
+
+message CPU {
+    // @inject_tag: bson:"abi,omitempty"
+    string abi = 1;
+    // @inject_tag: bson:"abilist,omitempty"
+    string abilist = 2;
+    // @inject_tag: bson:"abilist32,omitempty"
+    string abilist32 = 3;
+    // @inject_tag: bson:"abilist64,omitempty"
+    string abilist64 = 4;
+}
+
+message Memory {
+    // @inject_tag: bson:"total,omitempty"
+    string total = 1;
+    // @inject_tag: bson:"used,omitempty"
+    string used = 2;
+    // @inject_tag: bson:"available,omitempty"
+    string available = 3;
+}
+
+message Device {
+    // @inject_tag: bson:"_id,omitempty"
+    string id = 1;
+    // @inject_tag: bson:"addr,omitempty"
+    string addr = 2;
+    // @inject_tag: bson:"label,omitempty"
+    string label = 3;
+    // @inject_tag: bson:"cpu,omitempty"
+    CPU cpu = 4;
+    // @inject_tag: bson:"memory,omitempty"
+    Memory memory = 5;
+    // @inject_tag: bson:"model,omitempty"
+    string model = 6;
+    // @inject_tag: bson:"brand,omitempty"
+    string brand = 7;
+    // @inject_tag: bson:"name,omitempty"
+    string name = 8;
+    // @inject_tag: bson:"device,omitempty"
+    string device = 9;
+    // @inject_tag: bson:"board,omitempty"
+    string board = 10;
+    // @inject_tag: bson:"locale,omitempty"
+    string locale = 11;
+    // @inject_tag: bson:"first_api_level,omitempty"
+    string firstApiLevel = 12;
+    // @inject_tag: bson:"manufacturer,omitempty"
+    string manufacturer = 13;
+    // @inject_tag: bson:"cuptsm,omitempty"
+    string cuptsm = 14;
+    // @inject_tag: bson:"serial,omitempty"
+    string serial = 15;
+}
+
+message Addr {
+    // @inject_tag: bson:"http,omitempty"
+    string http = 1;
+    // @inject_tag: bson:"rpc,omitempty"
+    string rpc = 2;
+}
+
+message Node {
+    // @inject_tag: bson:"_id,omitempty"
+    string  id = 1;
+    // @inject_tag: bson:"addr,omitempty"
+    Addr addr = 2;
+    // @inject_tag: bson:"labels,omitempty"
+    string labels = 3;
+    // @inject_tag: bson:"devices,omitempty"
+    repeated Device devices = 4;
+}
+
+message User {
+    // @inject_tag: xorm:"int64 notnull pk autoincr"
+    int64 id = 1;
+    // @inject_tag: xorm:"varchar(20) notnull"
+    string userName = 2;
+    // @inject_tag: xorm:"varchar(50) notnull"
+    string passWord = 3;
+    // @inject_tag: xorm:"varchar(20) notnull"
+    string role = 4;
+}
+
+message Tag {
+    int64 id = 1;
+    // @inject_tag: xorm:"varchar(100) notnull"
+    string mark = 2;
+}
+
+message Image {
+    // @inject_tag: xorm:"varchar(50) notnull pk"
+    string id = 1;
+    // @inject_tag: xorm:"varchar(50)"
+    string mark = 2;
+    // @inject_tag: xorm:"varchar(100) notnull"
+    string path = 3;
+    // @inject_tag: xorm:"varchar(40) notnull"
+    string last_update_by = 4;
+    // @inject_tag: xorm:"date"
+    string last_update = 5;
+}
+
+message Apk {
+    // @inject_tag: bson:"path,omitempty"
+    string path = 1;
+    // @inject_tag: bson:"pkg_name,omitempty"
+    string pkgName = 2;
+    // @inject_tag: bson:"class_name,omitempty"
+    string className = 3;
+}
+
+enum Status {
+    PREPARE = 0;
+    RUNNING = 1;
+    SUCCESS = 2;
+    ERROR = 3;
+}
+
+message SubJob {
+    // @inject_tag: bson:"_id,omitempty"
+    string id = 1;
+    // @inject_tag: bson:"images,omitempty"
+    repeated  Image images = 2;
+    // @inject_tag: bson:"node,omitempty"
+    Node node = 3;
+    // @inject_tag: bson:"device,omitempty"
+    Device device = 4;
+    // @inject_tag: bson:"status,omitempty"
+    Status status = 5;
+    // @inject_tag: bson:"update_time,omitempty"
+    string updateTime = 6;
+    // @inject_tag: bson:"log,omitempty"
+    string log = 7;
+}
+
+message Job {
+    // @inject_tag: bson:"_id,omitempty"
+    string id = 1;
+    // @inject_tag: bson:"name,omitempty"
+    string name = 2;
+    // @inject_tag: bson:"apk,omitempty"
+    Apk Apk = 3;
+    // @inject_tag: bson:"subjobs,omitempty"
+    repeated SubJob subJobs = 4;
+    // @inject_tag: bson:"owner,omitempty"
+    string owner = 5;
+    // @inject_tag: bson:"status,omitempty"
+    Status status = 6;
+    // @inject_tag: bson:"update_time,omitempty"
+    google.protobuf.Timestamp updateTime = 7;
+}
+
+message TriggerJobRequest {
+    Job job = 1;
+    SubJob subJob = 2;
+}
+
+message TriggerJobResponse {
+    Job job = 1;
+    SubJob subJob = 2;
+}
+
+service JobService {
+    rpc trigger (TriggerJobRequest) returns (TriggerJobResponse) {}
+}
+
+message SearchNodeRequest {
+    string serial = 1;
+}
+
+message NodeDeviceUnit {
+    Node node = 1;
+    Device device = 2;
+}
+
+message SearchNodeResponse {
+    repeated NodeDeviceUnit nodeDeviceUnits = 1;
+}
+
+service NodeService {
+    rpc search (SearchNodeRequest) returns (SearchNodeResponse) {}
+}

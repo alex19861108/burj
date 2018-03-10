@@ -1,0 +1,13 @@
+burj_center:
+  zk_server: localhost:2181
+  zk_root: /burj
+  rpc_server: localhost:8889
+server:
+  name: burj_server
+  port:
+    http: 8000
+    rpc: 8001
+db_mongo:
+  url: mongodb://localhost:27017/burj
+db_mysql:
+  url: mysql://root:123456@tcp(10.201.103.6:3306)/MarkUp

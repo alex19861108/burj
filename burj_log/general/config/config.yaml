@@ -1,0 +1,7 @@
+burj_center:
+  zk_server: localhost:2181
+  zk_root: /burj
+server:
+  name: burj_log
+  port:
+    http: 8090

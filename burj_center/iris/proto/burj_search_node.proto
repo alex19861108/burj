@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+// go use cc_generic_services option
+option cc_generic_services = true;
+option java_generic_services = true;
+option py_generic_services = true;
+
+package proto;
+
+service SearchNodeService {
+    rpc trigger (SearchNodeRequest) returns (SearchNodeResponse) {}
+}
+
+message Node {
+    string host = 1;
+    string labels = 2;
+}
+
+message SearchNodeRequest {
+    string content = 1;
+}
+
+message SearchNodeResponse {
+    repeated Node node = 1;
+}
