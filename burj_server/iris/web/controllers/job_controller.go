@@ -54,14 +54,13 @@ func (c *JobController) GetFilterBy(owner string) (results []proto.Job) {
 	return c.JobService.GetByOwner(owner)
 }
 
-func (c *JobController) AnyNew() (job proto.Job, err error) {
-	log.Printf("%#v\n", c.Ctx.FormValues())
-	name := c.Ctx.FormValue("name")
-	imageTags := c.Ctx.FormValue("image_tags")
-	apkPath := c.Ctx.FormValue("apk_path")
-	apkPkgName := c.Ctx.FormValue("apk_pkg_name")
-	apkClassName := c.Ctx.FormValue("apk_class_name")
-	//deviceLabel := c.Ctx.FormValue("device_label")
+func (c *JobController) AnyCreate() (job proto.Job, err error) {
+	log.Printf("create job, params: %#v\n", c.Ctx.FormValues())
+	name := strings.TrimSpace(c.Ctx.FormValue("name"))
+	imageTags := strings.TrimSpace(c.Ctx.FormValue("image_tags"))
+	apkPath := strings.TrimSpace(c.Ctx.FormValue("apk_path"))
+	apkPkgName := strings.TrimSpace(c.Ctx.FormValue("apk_pkg_name"))
+	apkClassName := strings.TrimSpace(c.Ctx.FormValue("apk_class_name"))
 
 	conn, err := grpc.Dial(c.Cfg.BurjCenterConfig.RpcServer, grpc.WithInsecure())
 	defer conn.Close()
@@ -69,10 +68,11 @@ func (c *JobController) AnyNew() (job proto.Job, err error) {
 		return job, ERROR_CONNECT_BURJ_CENTER
 	}
 
+	log.Println("get image by tags")
 	// get all valid node device unit
 	client := proto.NewNodeServiceClient(conn)
 	resp, err := client.Search(context.Background(), &proto.SearchNodeRequest{})
-	if err != nil {
+	if err != nil || len(resp.NodeDeviceUnits) == 0 {
 		return job, ERROR_NO_NODE_FOUND
 	}
 
@@ -87,6 +87,7 @@ func (c *JobController) AnyNew() (job proto.Job, err error) {
 		return job, ERROR_NO_IMAGE_FOUND
 	}
 
+	log.Println("part images to devices")
 	// part images for devices
 	subJobs := c.JobService.PacketImagesToDevices(images, resp.NodeDeviceUnits)
 	job = proto.Job{
@@ -99,32 +100,41 @@ func (c *JobController) AnyNew() (job proto.Job, err error) {
 		},
 	}
 
+	log.Println("create job")
 	// save job information
 	job, err = c.JobService.InsertOrUpdate(job)
 
+	log.Println("trigger job")
 	// trigger subJobs
-	for _, subJob := range job.SubJobs {
-		conn, err := grpc.Dial(subJob.Node.Addr.Rpc, grpc.WithInsecure())
-		defer conn.Close()
-		if err != nil {
-			return job, err
-		}
+	go func(job proto.Job) (proto.Job, error) {
+		for _, subJob := range job.SubJobs {
+			conn, err := grpc.Dial(subJob.Node.Addr.Rpc, grpc.WithInsecure())
+			defer conn.Close()
+			if err != nil {
+				return job, err
+			}
 
-		client := proto.NewJobServiceClient(conn)
-		response, err := client.Trigger(context.Background(), &proto.TriggerJobRequest{
-			Job:    &job,
-			SubJob: subJob,
-		})
-		if err != nil {
-			return job, err
+			client := proto.NewJobServiceClient(conn)
+			response, err := client.Trigger(context.Background(), &proto.TriggerJobRequest{
+				Job:    &job,
+				SubJob: subJob,
+			})
+			if err != nil {
+				return job, err
+			}
+			log.Printf("%#v\t%#v\n", subJob, response)
 		}
-		log.Printf("%#v\t%#v\n", subJob, response)
-	}
+		return job, nil
+	}(job)
 	return job, nil
 }
 
 func (c *JobController) AnyDeleteBy(id string) (err error) {
 	return c.JobService.DeleteByID(id)
+}
+
+func (c *JobController) GetImageTags() (tags []proto.Tag, err error) {
+	return c.TagService.GetImageTags()
 }
 
 func (c *JobController) AnyLog() (job proto.Job, err error) {

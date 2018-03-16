@@ -10,7 +10,9 @@ import (
 	"github.com/alex19861108/burj/burj_server/iris/services"
 	"github.com/alex19861108/burj/burj_server/iris/web/controllers"
 	"github.com/kataras/iris"
+	"github.com/kataras/iris/middleware/recover"
 	"github.com/kataras/iris/mvc"
+	"github.com/rs/cors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -28,7 +30,15 @@ func init() {
 
 func main() {
 	app := iris.New()
+	app.Use(recover.New())
 	app.Logger().SetLevel("debug")
+
+	corsOptions := cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+	}
+	corsWrapper := cors.New(corsOptions).ServeHTTP
+	app.WrapRouter(corsWrapper)
 
 	// Load the template files.
 	app.RegisterView(iris.HTML("./web/views", ".html"))

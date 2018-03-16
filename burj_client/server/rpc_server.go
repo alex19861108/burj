@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path"
@@ -33,6 +34,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	imagePath := path.Join(IMAGE_ROOT_PATH, req.Job.Id)
 	pkgPath := path.Join(APK_PKG_ROOT_PATH, req.Job.Id)
 	// package images
+	log.Printf("[jid]: %s, pack images\n", req.Job.Id)
 	localZipPath, err := s.packImages(req.SubJob.Images, imagePath)
 	if err != nil {
 		s.clean([]string{imagePath})
@@ -43,6 +45,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	}
 
 	// download apk
+	log.Printf("[jid]: %s, download apk\n", req.Job.Id)
 	localApkPkgPath, err := transfer.DownloadFromHttp(req.Job.Apk.Path, pkgPath)
 	if err != nil {
 		s.clean([]string{imagePath, pkgPath})
@@ -53,6 +56,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	}
 
 	// do job
+	log.Printf("[jid]: %s, run job\n", req.Job.Id)
 	err = s.ADB.Run(req.SubJob.Device.Serial, localZipPath, localApkPkgPath, req.Job.Apk.PkgName, req.Job.Apk.ClassName, req.Job.Id)
 	if err != nil {
 		s.clean([]string{imagePath, pkgPath})
@@ -63,6 +67,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	}
 
 	// clean tmp file
+	log.Printf("[jid]: %s, clean cache\n", req.Job.Id)
 	s.clean([]string{imagePath, pkgPath})
 
 	return &proto.TriggerJobResponse{

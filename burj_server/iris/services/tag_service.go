@@ -11,6 +11,7 @@ type TagService interface {
 	GetAll() ([]proto.Tag, error)
 	GetByID(id int) (proto.Tag, error)
 	GetByNames(tags []string) ([]proto.Tag, error)
+	GetImageTags() ([]proto.Tag, error)
 }
 
 func NewTagService(repo repositories.TagRepository) TagService {
@@ -39,4 +40,8 @@ func (s *tagService) GetByNames(names []string) (results []proto.Tag, err error)
 		results = append(results, tag)
 	}
 	return
+}
+
+func (s *tagService) GetImageTags() ([]proto.Tag, error) {
+	return s.repo.SelectAll()
 }
