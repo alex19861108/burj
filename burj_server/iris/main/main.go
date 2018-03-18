@@ -4,6 +4,8 @@ import (
 	"flag"
 	"io/ioutil"
 
+	"google.golang.org/grpc"
+
 	"github.com/alex19861108/burj/burj_center/iris/common/database"
 	"github.com/alex19861108/burj/burj_center/iris/config"
 	"github.com/alex19861108/burj/burj_server/iris/repositories"
@@ -50,6 +52,8 @@ func main() {
 	// Serve our controllers.
 	mvc.New(app.Party("/")).Handle(new(controllers.HomeController))
 	mvc.Configure(app.Party("/job"), jobs)
+	mvc.Configure(app.Party("/node"), nodes)
+	mvc.Configure(app.Party("/device"), devices)
 
 	app.Run(
 		// Start the web server at localhost:8080
@@ -79,4 +83,20 @@ func jobs(app *mvc.Application) {
 	app.Register(cfg)
 
 	app.Handle(new(controllers.JobController))
+}
+
+func nodes(app *mvc.Application) {
+	conn, _ := grpc.Dial(cfg.BurjCenterConfig.RpcServer, grpc.WithInsecure())
+	//defer conn.Close()
+	app.Register(conn)
+
+	app.Handle(new(controllers.NodeController))
+}
+
+func devices(app *mvc.Application) {
+	conn, _ := grpc.Dial(cfg.BurjCenterConfig.RpcServer, grpc.WithInsecure())
+	//defer conn.Close()
+	app.Register(conn)
+
+	app.Handle(new(controllers.DeviceController))
 }
