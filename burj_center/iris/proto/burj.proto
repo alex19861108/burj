@@ -187,6 +187,24 @@ message SearchNodeResponse {
     repeated NodeDeviceUnit nodeDeviceUnits = 1;
 }
 
+message GetNodesRequest {
+    string id = 1;
+}
+
+message GetNodesResponse {
+    repeated Node nodes = 1;
+}
+
+message GetDevicesRequest {
+    string id = 1;
+}
+
+message GetDevicesResponse {
+    repeated Device devices = 1;
+}
+
 service NodeService {
     rpc search (SearchNodeRequest) returns (SearchNodeResponse) {}
+    rpc getNodes (GetNodesRequest) returns (GetNodesResponse) {}
+    rpc getDevices (GetDevicesRequest) returns (GetDevicesResponse) {}
 }
