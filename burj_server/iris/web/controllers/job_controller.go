@@ -1,7 +1,9 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log"
 	"strings"
 	"time"
@@ -142,6 +144,13 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 	subJid := c.Ctx.FormValue("sub_jid")
 	result := c.Ctx.FormValue("result")
 
+	buf := bytes.NewBuffer(nil)
+	fr, _, err := c.Ctx.FormFile("file")
+	if err == nil {
+		io.Copy(buf, fr)
+	}
+	defer fr.Close()
+
 	job, err = c.JobService.GetByID(jid)
 	if err != nil {
 		return
@@ -151,7 +160,8 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 		if subJob.Id == subJid {
 			subJob.Status = proto.Status_SUCCESS
 			subJob.UpdateTime = time.Now().String()
-			subJob.Log = result
+			subJob.Summary = result
+			subJob.Log = buf.String()
 		}
 	}
 	// save job information

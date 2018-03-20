@@ -209,8 +209,8 @@ func (a *ADB) deviceUninstallApk(serial string, apk string) error {
 	return err
 }
 
-func (a *ADB) deviceStartApk(serial string, pkgName string, clsName string, jid string) error {
-	buf := fmt.Sprintf(`adb -s %s shell am start %s/.%s --es jid %s`, serial, pkgName, clsName, jid)
+func (a *ADB) deviceStartApk(serial string, pkgName string, clsName string, jid string, sjid string) error {
+	buf := fmt.Sprintf(`adb -s %s shell am start %s/.%s --es jid %s --es sjid %s`, serial, pkgName, clsName, jid, sjid)
 	_, err := Exec(buf)
 	return err
 }
@@ -235,7 +235,7 @@ func (a *ADB) Devices() ([]*proto.Device, error) {
 	return devices, nil
 }
 
-func (a *ADB) Run(serial string, dataPath string, apkPath string, apkPkgName string, apkClsName string, jid string) (err error) {
+func (a *ADB) Run(serial string, dataPath string, apkPath string, apkPkgName string, apkClsName string, jid string, sjid string) (err error) {
 	a.deviceRmDir(serial, DEVICE_ROOT_PATH)
 	err = a.deviceMakeDir(serial, DEVICE_ROOT_PATH)
 	if err != nil {
@@ -250,7 +250,7 @@ func (a *ADB) Run(serial string, dataPath string, apkPath string, apkPkgName str
 	if err != nil {
 		return ERROR_INSTALL_APK
 	}
-	err = a.deviceStartApk(serial, apkPkgName, apkClsName, jid)
+	err = a.deviceStartApk(serial, apkPkgName, apkClsName, jid, sjid)
 	if err != nil {
 		return ERROR_START_APK
 	}

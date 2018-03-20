@@ -139,8 +139,10 @@ message SubJob {
     Status status = 5;
     // @inject_tag: bson:"update_time,omitempty"
     string updateTime = 6;
+    // @inject_tag: bson:"summary,omitempty"
+    string summary = 7;
     // @inject_tag: bson:"log,omitempty"
-    string log = 7;
+    string log = 8;
 }
 
 message Job {

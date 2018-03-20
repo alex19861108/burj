@@ -57,7 +57,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 
 	// do job
 	log.Printf("[jid]: %s, run job\n", req.Job.Id)
-	err = s.ADB.Run(req.SubJob.Device.Serial, localZipPath, localApkPkgPath, req.Job.Apk.PkgName, req.Job.Apk.ClassName, req.Job.Id)
+	err = s.ADB.Run(req.SubJob.Device.Serial, localZipPath, localApkPkgPath, req.Job.Apk.PkgName, req.Job.Apk.ClassName, req.Job.Id, req.SubJob.Id)
 	if err != nil {
 		s.clean([]string{imagePath, pkgPath})
 		return &proto.TriggerJobResponse{

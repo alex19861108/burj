@@ -7,7 +7,5 @@ server:
   port:
     http: 8100
     rpc: 8101
-monitor:
-  api: localhost:9000/regist/node
 ftp_server:
   url: sftp://marker:marker@10.201.103.6/data/BIGDISK/zcl/ftpdir/

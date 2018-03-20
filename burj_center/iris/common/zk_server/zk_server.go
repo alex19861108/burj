@@ -90,11 +90,10 @@ func watchNodeChildrenChanged(conn *zk.Conn, p string, service services.NodeServ
 
 					node := proto.Node{}
 					if err = json.Unmarshal(data, &node); err != nil {
-						//panic(err)
 						continue
 					}
 					// insert into db
-					service.InsertOrUpdate(node)
+					node, err = service.InsertOrUpdate(node)
 
 					go watchChildNode(conn, childNodePath, service)
 				}
@@ -120,6 +119,7 @@ func watchChildNode(conn *zk.Conn, path string, service services.NodeService) {
 		case zk.EventNodeDataChanged:
 			data, _, err := conn.Get(path)
 			if err != nil {
+				panic(err)
 				return
 			}
 
@@ -128,6 +128,9 @@ func watchChildNode(conn *zk.Conn, path string, service services.NodeService) {
 				return
 			}
 			node, err = service.InsertOrUpdate(node)
+			if err != nil {
+				panic(err)
+			}
 		case zk.EventNodeDeleted:
 			service.DeleteByLabelAndAddr(label, addr)
 			return
