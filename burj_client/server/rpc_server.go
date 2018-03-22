@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -31,6 +32,7 @@ type RpcServer struct {
 }
 
 func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (*proto.TriggerJobResponse, error) {
+	log.Printf("trigger job: %#v\n", req)
 	imagePath := path.Join(IMAGE_ROOT_PATH, req.Job.Id)
 	pkgPath := path.Join(APK_PKG_ROOT_PATH, req.Job.Id)
 	// package images
@@ -81,7 +83,8 @@ func (s *RpcServer) packImages(images []*proto.Image, dir string) (string, error
 		transfer.DownloadFromSftp(imgFtpPath, dir)
 	}
 
-	localImageZipPath := path.Join(dir, path.Base(dir)+".zip")
+	//localImageZipPath := path.Join(dir, path.Base(dir)+".zip")
+	localImageZipPath := path.Join(dir, ".zip")
 	err := packDirectory(dir, localImageZipPath)
 
 	return localImageZipPath, err
@@ -89,7 +92,16 @@ func (s *RpcServer) packImages(images []*proto.Image, dir string) (string, error
 
 func (s *RpcServer) clean(dirs []string) {
 	for _, item := range dirs {
-		os.Remove(item)
+		filepath.Walk(item, func(path string, fi os.FileInfo, err error) error {
+			if nil == fi {
+				return err
+			}
+			if !fi.IsDir() {
+				return nil
+			}
+			err = os.RemoveAll(path)
+			return err
+		})
 	}
 }
 

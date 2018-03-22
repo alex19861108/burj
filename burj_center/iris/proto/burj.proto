@@ -7,7 +7,7 @@ option py_generic_services = true;
 
 package proto;
 
-import "google/protobuf/timestamp.proto";
+//import "google/protobuf/timestamp.proto";
 
 message CPU {
     // @inject_tag: bson:"abi,omitempty"
@@ -152,14 +152,16 @@ message Job {
     string name = 2;
     // @inject_tag: bson:"apk,omitempty"
     Apk Apk = 3;
+    // @inject_tag: bson:"tags,omitempty"
+    repeated Tag Tags = 4;
     // @inject_tag: bson:"subjobs,omitempty"
-    repeated SubJob subJobs = 4;
+    repeated SubJob subJobs = 5;
     // @inject_tag: bson:"owner,omitempty"
-    string owner = 5;
+    string owner = 6;
     // @inject_tag: bson:"status,omitempty"
-    Status status = 6;
+    Status status = 7;
     // @inject_tag: bson:"update_time,omitempty"
-    google.protobuf.Timestamp updateTime = 7;
+    string updateTime = 8;
 }
 
 message TriggerJobRequest {

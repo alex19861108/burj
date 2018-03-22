@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/alex19861108/burj/burj_center/iris/proto"
@@ -209,8 +210,8 @@ func (a *ADB) deviceUninstallApk(serial string, apk string) error {
 	return err
 }
 
-func (a *ADB) deviceStartApk(serial string, pkgName string, clsName string, jid string, sjid string) error {
-	buf := fmt.Sprintf(`adb -s %s shell am start %s/.%s --es jid %s --es sjid %s`, serial, pkgName, clsName, jid, sjid)
+func (a *ADB) deviceStartApk(serial string, pkgName string, clsName string, dataPath string, jid string, sjid string) error {
+	buf := fmt.Sprintf(`adb -s %s shell am start %s/.%s --es jid %s --es sjid %s --es data_path %s`, serial, pkgName, clsName, jid, sjid, dataPath)
 	_, err := Exec(buf)
 	return err
 }
@@ -250,7 +251,7 @@ func (a *ADB) Run(serial string, dataPath string, apkPath string, apkPkgName str
 	if err != nil {
 		return ERROR_INSTALL_APK
 	}
-	err = a.deviceStartApk(serial, apkPkgName, apkClsName, jid, sjid)
+	err = a.deviceStartApk(serial, apkPkgName, apkClsName, path.Join(DEVICE_ROOT_PATH, path.Base(dataPath)), jid, sjid)
 	if err != nil {
 		return ERROR_START_APK
 	}

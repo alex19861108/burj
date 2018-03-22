@@ -29,7 +29,10 @@ func (r *jobMongoRepository) FindAll(m bson.M) (results []proto.Job) {
 	}
 	defer session.Close()
 
-	session.C(r.ColJob).Find(m).All(&results)
+	err = session.C(r.ColJob).Find(m).Sort("-_id").All(&results)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 

@@ -83,6 +83,8 @@ func watchNodeChildrenChanged(conn *zk.Conn, p string, service services.NodeServ
 				// 增加节点
 				for _, n := range difference(currChildren, children) {
 					childNodePath := path.Join(p, n)
+					go watchChildNode(conn, childNodePath, service)
+
 					data, _, err := conn.Get(childNodePath)
 					if err != nil {
 						continue
@@ -94,8 +96,6 @@ func watchNodeChildrenChanged(conn *zk.Conn, p string, service services.NodeServ
 					}
 					// insert into db
 					node, err = service.InsertOrUpdate(node)
-
-					go watchChildNode(conn, childNodePath, service)
 				}
 			}
 		}

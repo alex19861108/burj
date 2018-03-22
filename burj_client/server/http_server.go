@@ -28,7 +28,7 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 
 	adb := service.ADB{}
 	serials := adb.Serials()
-	adb.Run(serials[0], TEST_PIC_PKG_PATH, TEST_APK_PATH, TEST_APK_PKG_NAME, TEST_APK_CLS_NAME, "jid")
+	adb.Run(serials[0], TEST_PIC_PKG_PATH, TEST_APK_PATH, TEST_APK_PKG_NAME, TEST_APK_CLS_NAME, "jid", "0")
 	net.WriteJSON(w, http.StatusOK, "success")
 }
 

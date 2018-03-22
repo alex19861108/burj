@@ -1,7 +1,9 @@
 package services
 
 import (
+	"log"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/alex19861108/burj/burj_center/iris/proto"
@@ -57,13 +59,14 @@ func (s *jobService) PacketImagesToDevices(images []*proto.Image, units []*proto
 		end := int(math.Min(float64((id+1)*part), float64(len(images))))
 		//protoTime, _ := ptypes.TimestampProto(time.Now())
 		subJob := &proto.SubJob{
-			Id:         string(id),
+			Id:         strconv.Itoa(id),
 			Images:     images[begin:end],
 			Node:       unit.Node,
 			Device:     unit.Device,
 			Status:     proto.Status_PREPARE,
 			UpdateTime: time.Now().String(),
 		}
+		log.Printf("%#v\n", subJob)
 		subJobs = append(subJobs, subJob)
 	}
 	return subJobs

@@ -10,8 +10,8 @@ import (
 type TagService interface {
 	GetAll() ([]proto.Tag, error)
 	GetByID(id int) (proto.Tag, error)
-	GetByNames(tags []string) ([]proto.Tag, error)
-	GetImageTags() ([]proto.Tag, error)
+	GetByNames(tags []string) ([]*proto.Tag, error)
+	GetImageTags() ([]*proto.Tag, error)
 }
 
 func NewTagService(repo repositories.TagRepository) TagService {
@@ -30,18 +30,18 @@ func (s *tagService) GetByID(id int) (mark proto.Tag, err error) {
 	return
 }
 
-func (s *tagService) GetByNames(names []string) (results []proto.Tag, err error) {
+func (s *tagService) GetByNames(names []string) (results []*proto.Tag, err error) {
 	for _, name := range names {
 		name = strings.TrimSpace(name)
 		tag, err := s.repo.SelectOneByMark(name)
 		if err != nil {
 			continue
 		}
-		results = append(results, tag)
+		results = append(results, &tag)
 	}
 	return
 }
 
-func (s *tagService) GetImageTags() ([]proto.Tag, error) {
+func (s *tagService) GetImageTags() ([]*proto.Tag, error) {
 	return s.repo.SelectAll()
 }

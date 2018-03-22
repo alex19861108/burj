@@ -70,7 +70,7 @@ func (c *JobController) AnyCreate() (job proto.Job, err error) {
 		return job, ERROR_CONNECT_BURJ_CENTER
 	}
 
-	log.Println("get image by tags")
+	log.Println("[job]: get image by tags")
 	// get all valid node device unit
 	client := proto.NewNodeServiceClient(conn)
 	resp, err := client.Search(context.Background(), &proto.SearchNodeRequest{})
@@ -89,7 +89,7 @@ func (c *JobController) AnyCreate() (job proto.Job, err error) {
 		return job, ERROR_NO_IMAGE_FOUND
 	}
 
-	log.Println("part images to devices")
+	log.Println("[job]: part images to devices")
 	// part images for devices
 	subJobs := c.JobService.PacketImagesToDevices(images, resp.NodeDeviceUnits)
 	job = proto.Job{
@@ -100,13 +100,16 @@ func (c *JobController) AnyCreate() (job proto.Job, err error) {
 			PkgName:   apkPkgName,
 			ClassName: apkClassName,
 		},
+		Tags:       tags,
+		Status:     proto.Status_PREPARE,
+		UpdateTime: time.Now().String(),
 	}
 
-	log.Println("create job")
+	log.Println("[job]: create job")
 	// save job information
 	job, err = c.JobService.InsertOrUpdate(job)
 
-	log.Println("trigger job")
+	log.Println("[job]: trigger job")
 	// trigger subJobs
 	go func(job proto.Job) (proto.Job, error) {
 		for _, subJob := range job.SubJobs {
@@ -117,14 +120,38 @@ func (c *JobController) AnyCreate() (job proto.Job, err error) {
 			}
 
 			client := proto.NewJobServiceClient(conn)
-			response, err := client.Trigger(context.Background(), &proto.TriggerJobRequest{
+			_, err = client.Trigger(context.Background(), &proto.TriggerJobRequest{
 				Job:    &job,
 				SubJob: subJob,
 			})
 			if err != nil {
+				job.Status = proto.Status_ERROR
+				job.UpdateTime = time.Now().String()
+				for _, sj := range job.SubJobs {
+					if sj.Id == subJob.Id {
+						sj.Summary = err.Error()
+						sj.Status = proto.Status_ERROR
+						sj.UpdateTime = time.Now().String()
+						break
+					}
+				}
+				job, err = c.JobService.InsertOrUpdate(job)
+				return job, err
+			} else {
+				if job.Status != proto.Status_ERROR && job.Status != proto.Status_SUCCESS {
+					job.Status = proto.Status_RUNNING
+				}
+				job.UpdateTime = time.Now().String()
+				for _, sj := range job.SubJobs {
+					if sj.Id == subJob.Id {
+						sj.Status = proto.Status_RUNNING
+						sj.UpdateTime = time.Now().String()
+						break
+					}
+				}
+				job, err = c.JobService.InsertOrUpdate(job)
 				return job, err
 			}
-			log.Printf("%#v\t%#v\n", subJob, response)
 		}
 		return job, nil
 	}(job)
@@ -135,14 +162,18 @@ func (c *JobController) AnyDeleteBy(id string) (err error) {
 	return c.JobService.DeleteByID(id)
 }
 
-func (c *JobController) GetImageTags() (tags []proto.Tag, err error) {
+func (c *JobController) GetImageTags() (tags []*proto.Tag, err error) {
 	return c.TagService.GetImageTags()
 }
 
 func (c *JobController) AnyLog() (job proto.Job, err error) {
+	log.Printf("receive new log: %#v\n", c.Ctx.FormValues())
 	jid := c.Ctx.FormValue("jid")
-	subJid := c.Ctx.FormValue("sub_jid")
+	subJid := c.Ctx.FormValue("sjid")
 	result := c.Ctx.FormValue("result")
+	if jid == "" || subJid == "" {
+		return
+	}
 
 	buf := bytes.NewBuffer(nil)
 	fr, _, err := c.Ctx.FormFile("file")
@@ -156,6 +187,7 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 		return
 	}
 
+	// change sub job status
 	for _, subJob := range job.SubJobs {
 		if subJob.Id == subJid {
 			subJob.Status = proto.Status_SUCCESS
@@ -164,8 +196,22 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 			subJob.Log = buf.String()
 		}
 	}
-	// save job information
-	job, err = c.JobService.InsertOrUpdate(job)
 
-	return job, nil
+	// change job status
+	if job.Status != proto.Status_SUCCESS && job.Status != proto.Status_ERROR {
+		jobStatus := proto.Status_SUCCESS
+		for _, subJob := range job.SubJobs {
+			if subJob.Status != proto.Status_SUCCESS {
+				jobStatus = proto.Status_RUNNING
+			}
+			if subJob.Status == proto.Status_ERROR {
+				jobStatus = proto.Status_ERROR
+			}
+		}
+		// save job information
+		job.Status = jobStatus
+		job, err = c.JobService.InsertOrUpdate(job)
+	}
+
+	return
 }

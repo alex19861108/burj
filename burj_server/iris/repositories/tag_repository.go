@@ -7,8 +7,8 @@ import (
 
 type TagRepository interface {
 	Select(id int64) (img proto.Tag, err error)
-	SelectOneByMark(query string) (img proto.Tag, err error)
-	SelectAll() (tags []proto.Tag, err error)
+	SelectOneByMark(query string) (tag proto.Tag, err error)
+	SelectAll() (tags []*proto.Tag, err error)
 }
 
 func NewTagRepository() TagRepository {
@@ -30,7 +30,7 @@ func (r *tagMysqlRepository) SelectOneByMark(query string) (tag proto.Tag, err e
 	return
 }
 
-func (r *tagMysqlRepository) SelectAll() (tags []proto.Tag, err error) {
+func (r *tagMysqlRepository) SelectAll() (tags []*proto.Tag, err error) {
 	err = database.NewEngine().Find(&tags)
 	return
 }
