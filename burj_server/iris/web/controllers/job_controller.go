@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alex19861108/burj/burj_center/iris/config"
@@ -31,6 +32,7 @@ type JobController struct {
 	ImageService services.ImageService
 	TagService   services.TagService
 	JobService   services.JobService
+	mu           sync.Mutex
 }
 
 func (c *JobController) BeforeActivation(b mvc.BeforeActivation) {
@@ -44,7 +46,7 @@ func (c *JobController) BeforeActivation(b mvc.BeforeActivation) {
 	//b.Handle("GET", "/something/{id:long}", "MyCustomHandler", nil)
 }
 
-func (c *JobController) Get() (results []proto.Job) {
+func (c *JobController) Get() (results []*proto.Job, err error) {
 	return c.JobService.GetAll()
 }
 
@@ -52,7 +54,7 @@ func (c *JobController) GetBy(id string) (node proto.Job, err error) {
 	return c.JobService.GetByID(id)
 }
 
-func (c *JobController) GetFilterBy(owner string) (results []proto.Job) {
+func (c *JobController) GetFilterBy(owner string) (results []*proto.Job, err error) {
 	return c.JobService.GetByOwner(owner)
 }
 
@@ -111,50 +113,58 @@ func (c *JobController) AnyCreate() (job proto.Job, err error) {
 
 	log.Println("[job]: trigger job")
 	// trigger subJobs
-	go func(job proto.Job) (proto.Job, error) {
+	go func(job proto.Job, c *JobController) (proto.Job, error) {
 		for _, subJob := range job.SubJobs {
-			conn, err := grpc.Dial(subJob.Node.Addr.Rpc, grpc.WithInsecure())
-			defer conn.Close()
-			if err != nil {
-				return job, err
-			}
+			go func(job proto.Job, subJob *proto.SubJob, c *JobController) (proto.Job, error) {
+				conn, err := grpc.Dial(subJob.Node.Addr.Rpc, grpc.WithInsecure())
+				defer conn.Close()
+				if err != nil {
+					return job, err
+				}
 
-			client := proto.NewJobServiceClient(conn)
-			_, err = client.Trigger(context.Background(), &proto.TriggerJobRequest{
-				Job:    &job,
-				SubJob: subJob,
-			})
-			if err != nil {
-				job.Status = proto.Status_ERROR
-				job.UpdateTime = time.Now().String()
-				for _, sj := range job.SubJobs {
-					if sj.Id == subJob.Id {
-						sj.Summary = err.Error()
-						sj.Status = proto.Status_ERROR
-						sj.UpdateTime = time.Now().String()
-						break
+				client := proto.NewJobServiceClient(conn)
+				_, err = client.Trigger(context.Background(), &proto.TriggerJobRequest{
+					Job:    &job,
+					SubJob: subJob,
+				})
+				if err != nil {
+					c.mu.Lock()
+					job, _ = c.JobService.GetByID(job.Id)
+					job.Status = proto.Status_ERROR
+					job.UpdateTime = time.Now().String()
+					for _, sj := range job.SubJobs {
+						if sj.Id == subJob.Id {
+							sj.Summary = err.Error()
+							sj.Status = proto.Status_ERROR
+							sj.UpdateTime = time.Now().String()
+							break
+						}
 					}
-				}
-				job, err = c.JobService.InsertOrUpdate(job)
-				return job, err
-			} else {
-				if job.Status != proto.Status_ERROR && job.Status != proto.Status_SUCCESS {
-					job.Status = proto.Status_RUNNING
-				}
-				job.UpdateTime = time.Now().String()
-				for _, sj := range job.SubJobs {
-					if sj.Id == subJob.Id {
-						sj.Status = proto.Status_RUNNING
-						sj.UpdateTime = time.Now().String()
-						break
+					job, err = c.JobService.InsertOrUpdate(job)
+					c.mu.Unlock()
+					return job, err
+				} else {
+					c.mu.Lock()
+					job, _ = c.JobService.GetByID(job.Id)
+					if job.Status != proto.Status_ERROR && job.Status != proto.Status_SUCCESS {
+						job.Status = proto.Status_RUNNING
 					}
+					job.UpdateTime = time.Now().String()
+					for _, sj := range job.SubJobs {
+						if sj.Id == subJob.Id {
+							sj.Status = proto.Status_RUNNING
+							sj.UpdateTime = time.Now().String()
+							break
+						}
+					}
+					job, err = c.JobService.InsertOrUpdate(job)
+					c.mu.Unlock()
+					return job, err
 				}
-				job, err = c.JobService.InsertOrUpdate(job)
-				return job, err
-			}
+			}(job, subJob, c)
 		}
 		return job, nil
-	}(job)
+	}(job, c)
 	return job, nil
 }
 
@@ -169,9 +179,9 @@ func (c *JobController) GetImageTags() (tags []*proto.Tag, err error) {
 func (c *JobController) AnyLog() (job proto.Job, err error) {
 	log.Printf("receive new log: %#v\n", c.Ctx.FormValues())
 	jid := c.Ctx.FormValue("jid")
-	subJid := c.Ctx.FormValue("sjid")
+	sJid := c.Ctx.FormValue("sjid")
 	result := c.Ctx.FormValue("result")
-	if jid == "" || subJid == "" {
+	if jid == "" || sJid == "" {
 		return
 	}
 
@@ -182,6 +192,7 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 	}
 	defer fr.Close()
 
+	c.mu.Lock()
 	job, err = c.JobService.GetByID(jid)
 	if err != nil {
 		return
@@ -189,7 +200,7 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 
 	// change sub job status
 	for _, subJob := range job.SubJobs {
-		if subJob.Id == subJid {
+		if subJob.Id == sJid {
 			subJob.Status = proto.Status_SUCCESS
 			subJob.UpdateTime = time.Now().String()
 			subJob.Summary = result
@@ -201,17 +212,23 @@ func (c *JobController) AnyLog() (job proto.Job, err error) {
 	if job.Status != proto.Status_SUCCESS && job.Status != proto.Status_ERROR {
 		jobStatus := proto.Status_SUCCESS
 		for _, subJob := range job.SubJobs {
-			if subJob.Status != proto.Status_SUCCESS {
-				jobStatus = proto.Status_RUNNING
-			}
 			if subJob.Status == proto.Status_ERROR {
 				jobStatus = proto.Status_ERROR
+				break
+			}
+			if subJob.Status != proto.Status_SUCCESS {
+				jobStatus = proto.Status_RUNNING
+				break
 			}
 		}
 		// save job information
 		job.Status = jobStatus
 		job, err = c.JobService.InsertOrUpdate(job)
+		if err != nil {
+			panic(err)
+		}
 	}
+	c.mu.Unlock()
 
 	return
 }

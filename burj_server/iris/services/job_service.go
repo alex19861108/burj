@@ -1,7 +1,6 @@
 package services
 
 import (
-	"log"
 	"math"
 	"strconv"
 	"time"
@@ -12,9 +11,9 @@ import (
 )
 
 type JobService interface {
-	GetAll() []proto.Job
+	GetAll() ([]*proto.Job, error)
 	GetByID(id string) (proto.Job, error)
-	GetByOwner(addr string) []proto.Job
+	GetByOwner(addr string) ([]*proto.Job, error)
 	DeleteByID(id string) error
 	InsertOrUpdate(j proto.Job) (proto.Job, error)
 	PacketImagesToDevices(images []*proto.Image, units []*proto.NodeDeviceUnit) (subJobs []*proto.SubJob)
@@ -30,7 +29,7 @@ type jobService struct {
 	repo repositories.JobRepository
 }
 
-func (s *jobService) GetAll() []proto.Job {
+func (s *jobService) GetAll() ([]*proto.Job, error) {
 	return s.repo.FindAll(nil)
 }
 
@@ -38,7 +37,7 @@ func (s *jobService) GetByID(id string) (proto.Job, error) {
 	return s.repo.FindByID(id)
 }
 
-func (s *jobService) GetByOwner(owner string) []proto.Job {
+func (s *jobService) GetByOwner(owner string) ([]*proto.Job, error) {
 	return s.repo.FindAll(bson.M{"owner": owner})
 }
 
@@ -53,7 +52,7 @@ func (s *jobService) DeleteByID(id string) error {
 func (s *jobService) PacketImagesToDevices(images []*proto.Image, units []*proto.NodeDeviceUnit) (subJobs []*proto.SubJob) {
 	deviceCount := len(units)
 
-	part := len(images) / deviceCount
+	part := int(math.Ceil(float64(len(images)) / float64(deviceCount)))
 	for id, unit := range units {
 		begin := id * part
 		end := int(math.Min(float64((id+1)*part), float64(len(images))))
@@ -66,7 +65,6 @@ func (s *jobService) PacketImagesToDevices(images []*proto.Image, units []*proto
 			Status:     proto.Status_PREPARE,
 			UpdateTime: time.Now().String(),
 		}
-		log.Printf("%#v\n", subJob)
 		subJobs = append(subJobs, subJob)
 	}
 	return subJobs

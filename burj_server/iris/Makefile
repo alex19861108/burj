@@ -18,7 +18,7 @@ BUILD_OUTPUT_DIR=${CURRENT_DIR}/output
 LDFLAGS = -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT} -X main.BRANCH=${BRANCH}"
 
 # Build the project
-all: clean makedir test vet linux darwin windows copyconfig
+all: clean makedir test vet linux darwin windows copyconfig tar
 
 makedir:
 	cd ${BUILD_DIR}; \
@@ -47,6 +47,11 @@ copyconfig:
 	cp -r ${BUILD_DIR}/../config/*.yaml ${BUILD_OUTPUT_DIR}/config/; \
 	cd - >/dev/null
 
+tar:
+	cd ${BUILD_OUTPUT_DIR}; \
+	tar -czvf ${BINARY}.tar.gz bin config log; \
+	cd - >/dev/null
+
 test:
 	if ! hash go2xunit 2>/dev/null; then go install github.com/tebeka/go2xunit; fi
 	cd ${BUILD_DIR}; \
@@ -68,4 +73,4 @@ clean:
 		rm -rf ${BUILD_OUTPUT_DIR}; \
 	fi
 
-.PHONY: linux darwin windows copyconfig makedir test vet fmt clean
+.PHONY: linux darwin windows copyconfig makedir tar test vet fmt clean

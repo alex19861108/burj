@@ -7,6 +7,7 @@ import (
 	"log"
 	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/alex19861108/burj/burj_center/iris/proto"
@@ -76,7 +77,7 @@ func (a *ADB) Serials() (serials []string) {
 }
 
 func (a *ADB) deviceInfo(serial string) (*proto.Device, error) {
-	buf := fmt.Sprintf(`adb -s %s shell cat /system/build.prop | grep product`, serial)
+	buf := fmt.Sprintf(`adb -s %s shell getprop | grep product`, serial)
 	r, err := Exec(buf)
 	if err != nil {
 		return &proto.Device{}, err
@@ -99,9 +100,10 @@ func (a *ADB) deviceInfo(serial string) (*proto.Device, error) {
 	)
 	for _, line := range strings.Split(r, "\n") {
 		if !strings.HasPrefix(line, "#") {
-			pieces := strings.Split(line, "=")
-			if len(pieces) == 2 {
-				key, value := pieces[0], pieces[1]
+			reg := regexp.MustCompile(`\[(?P<key>.*)\]: \[(?P<value>.*)\]`)
+			submatchs := reg.FindStringSubmatch(line)
+			if len(submatchs) == 3 {
+				key, value := submatchs[1], submatchs[2]
 				switch key {
 				case "ro.product.model":
 					model = value
@@ -211,7 +213,7 @@ func (a *ADB) deviceUninstallApk(serial string, apk string) error {
 }
 
 func (a *ADB) deviceStartApk(serial string, pkgName string, clsName string, dataPath string, jid string, sjid string) error {
-	buf := fmt.Sprintf(`adb -s %s shell am start %s/.%s --es jid %s --es sjid %s --es data_path %s`, serial, pkgName, clsName, jid, sjid, dataPath)
+	buf := fmt.Sprintf(`adb -s %s shell am start -a android.intent.action.Main -n %s/.%s --es jid %s --es sjid %s --es data_path %s`, serial, pkgName, clsName, jid, sjid, dataPath)
 	_, err := Exec(buf)
 	return err
 }

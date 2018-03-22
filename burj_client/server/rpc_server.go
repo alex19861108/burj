@@ -39,7 +39,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	log.Printf("[jid]: %s, pack images\n", req.Job.Id)
 	localZipPath, err := s.packImages(req.SubJob.Images, imagePath)
 	if err != nil {
-		s.clean([]string{imagePath})
+		s.clean([]string{imagePath, localZipPath})
 		return &proto.TriggerJobResponse{
 			Job:    req.Job,
 			SubJob: req.SubJob,
@@ -50,7 +50,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	log.Printf("[jid]: %s, download apk\n", req.Job.Id)
 	localApkPkgPath, err := transfer.DownloadFromHttp(req.Job.Apk.Path, pkgPath)
 	if err != nil {
-		s.clean([]string{imagePath, pkgPath})
+		s.clean([]string{imagePath, pkgPath, localZipPath})
 		return &proto.TriggerJobResponse{
 			Job:    req.Job,
 			SubJob: req.SubJob,
@@ -61,7 +61,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 	log.Printf("[jid]: %s, run job\n", req.Job.Id)
 	err = s.ADB.Run(req.SubJob.Device.Serial, localZipPath, localApkPkgPath, req.Job.Apk.PkgName, req.Job.Apk.ClassName, req.Job.Id, req.SubJob.Id)
 	if err != nil {
-		s.clean([]string{imagePath, pkgPath})
+		s.clean([]string{imagePath, pkgPath, localZipPath})
 		return &proto.TriggerJobResponse{
 			Job:    req.Job,
 			SubJob: req.SubJob,
@@ -70,7 +70,7 @@ func (s *RpcServer) Trigger(ctx context.Context, req *proto.TriggerJobRequest) (
 
 	// clean tmp file
 	log.Printf("[jid]: %s, clean cache\n", req.Job.Id)
-	s.clean([]string{imagePath, pkgPath})
+	s.clean([]string{imagePath, pkgPath, localZipPath})
 
 	return &proto.TriggerJobResponse{
 		SubJob: req.SubJob,
@@ -83,8 +83,7 @@ func (s *RpcServer) packImages(images []*proto.Image, dir string) (string, error
 		transfer.DownloadFromSftp(imgFtpPath, dir)
 	}
 
-	//localImageZipPath := path.Join(dir, path.Base(dir)+".zip")
-	localImageZipPath := path.Join(dir, ".zip")
+	localImageZipPath := path.Join(path.Dir(dir), path.Base(dir)+".zip")
 	err := packDirectory(dir, localImageZipPath)
 
 	return localImageZipPath, err
